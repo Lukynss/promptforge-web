@@ -37,4 +37,31 @@ describe('Hero component', () => {
     render(<Hero />)
     expect(screen.getByText(/Powered by Gemini Flash/)).toBeInTheDocument()
   })
+
+  it('renders the product mockup window', () => {
+    render(<Hero />)
+    expect(document.querySelector('.mockup-window')).toBeInTheDocument()
+  })
+
+  it('renders the mockup input text', () => {
+    render(<Hero />)
+    expect(screen.getByText(/Write a cover letter for a senior developer role/)).toBeInTheDocument()
+  })
+
+  it('renders the mockup enhanced prompt output', () => {
+    render(<Hero />)
+    expect(screen.getByText('Enhanced prompt ready')).toBeInTheDocument()
+    expect(screen.getByText('9.2 / 10')).toBeInTheDocument()
+  })
+
+  it('renders the platform note with Windows coming soon', () => {
+    render(<Hero />)
+    expect(screen.getByText(/macOS 13/)).toBeInTheDocument()
+    expect(screen.getByText(/Windows.*Linux coming soon/)).toBeInTheDocument()
+  })
+
+  it('renders the progress indicator showing question 2 of 4', () => {
+    render(<Hero />)
+    expect(screen.getByText('Question 2 of 4')).toBeInTheDocument()
+  })
 })

@@ -44,27 +44,13 @@ export default function Nav() {
         <Link href="/#pricing" className="nav-link">Pricing</Link>
 
         {user ? (
-          <Link
-            href="/dashboard"
-            className="btn btn-ghost"
-            style={{ fontSize: '13px', padding: '7px 14px', borderRadius: '9px' }}
-          >
+          <Link href="/dashboard" className="btn btn-primary" style={{ fontSize: '13px', padding: '7px 14px', borderRadius: '9px' }}>
             Dashboard
           </Link>
         ) : (
           <>
-            <Link
-              href="/login"
-              className="btn btn-ghost"
-              style={{ fontSize: '13px', padding: '7px 14px', borderRadius: '9px' }}
-            >
-              Sign in
-            </Link>
-            <Link
-              href="#"
-              className="btn btn-primary"
-              style={{ fontSize: '13px', padding: '7px 14px', borderRadius: '9px' }}
-            >
+            <Link href="/login" className="nav-link">Sign in</Link>
+            <Link href="#" className="btn btn-primary" style={{ fontSize: '13px', padding: '7px 14px', borderRadius: '9px' }}>
               Download
             </Link>
           </>
