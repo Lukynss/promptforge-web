@@ -68,8 +68,45 @@ __tests__/              Jest tests
 ```
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=        # Used by Stripe webhook to bypass RLS
 ```
 Add to `.env.local` locally and Vercel environment variables for production.
+
+---
+
+## Stripe
+
+### Flow
+1. User clicks "Upgrade to Pro" → `/upgrade` page
+2. Clicks "Subscribe" → POST `/api/stripe/create-checkout` → creates Stripe Checkout Session
+3. User pays on Stripe → webhook fires → `profiles.plan` set to `'pro'`
+4. Cancelled subscription → `profiles.plan` set back to `'free'`
+
+### Routes
+| Route | Purpose |
+|-------|---------|
+| `GET /upgrade` | Upgrade landing page |
+| `GET /upgrade/success` | Post-payment success page |
+| `POST /api/stripe/create-checkout` | Creates Stripe Checkout Session (auth required) |
+| `POST /api/stripe/webhook` | Handles Stripe events (no auth — uses webhook secret) |
+
+### Environment Variables
+```
+STRIPE_SECRET_KEY=sk_test_...           # From dashboard.stripe.com → API keys
+STRIPE_WEBHOOK_SECRET=whsec_...        # From dashboard.stripe.com → Webhooks
+STRIPE_PRO_PRICE_ID=price_...          # Create a $3/month recurring price in Stripe
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+NEXT_PUBLIC_SITE_URL=https://your-app.vercel.app
+```
+
+### Stripe Setup Checklist
+1. Create product "PromptForge Pro" in Stripe → Pricing: $3/month recurring → copy `price_...` ID
+2. Create webhook endpoint pointing to `https://your-app.vercel.app/api/stripe/webhook`
+3. Subscribe to events: `checkout.session.completed`, `customer.subscription.deleted`, `customer.subscription.updated`
+4. Copy webhook signing secret → `STRIPE_WEBHOOK_SECRET`
+
+### Schema Migration
+Run `supabase/migrations/001_stripe_and_model_used.sql` in the Supabase SQL editor to add Stripe columns to `profiles`.
 
 ---
 

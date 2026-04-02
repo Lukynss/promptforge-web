@@ -44,7 +44,7 @@ export default function Pricing() {
               <div>
                 <div className="pricing-badge">Most popular</div>
                 <div className="pricing-name" style={{ color: 'var(--accent-soft)' }}>Pro</div>
-                <div className="pricing-price">$20<span> / month</span></div>
+                <div className="pricing-price">$3<span> / month</span></div>
                 <p className="pricing-desc">No key management, always the latest model, synced across devices.</p>
               </div>
               <div className="pricing-features">
@@ -54,8 +54,8 @@ export default function Pricing() {
                 <div className="pricing-feature"><CheckIcon />Priority support with &lt;4h response time</div>
                 <div className="pricing-feature"><CheckIcon />Early access to new features</div>
               </div>
-              <a href="#" className="btn btn-primary" style={{ textAlign: 'center', justifyContent: 'center', fontSize: '13px' }}>
-                Get Pro — $20/mo
+              <a href="/upgrade" className="btn btn-primary" style={{ textAlign: 'center', justifyContent: 'center', fontSize: '13px' }}>
+                Get Pro — $3/mo
               </a>
               <p className="pricing-guarantee">
                 <svg width="11" height="11" viewBox="0 0 11 11" fill="none">

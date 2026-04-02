@@ -3,12 +3,14 @@
 
 -- Profiles (auto-created on signup via trigger)
 create table if not exists public.profiles (
-  id          uuid references auth.users on delete cascade primary key,
-  email       text,
-  full_name   text,
-  avatar_url  text,
-  plan        text not null default 'free',  -- 'free' | 'pro'
-  created_at  timestamp with time zone default now()
+  id                      uuid references auth.users on delete cascade primary key,
+  email                   text,
+  full_name               text,
+  avatar_url              text,
+  plan                    text not null default 'free',  -- 'free' | 'pro'
+  stripe_customer_id      text unique,
+  stripe_subscription_id  text,
+  created_at              timestamp with time zone default now()
 );
 
 -- Waitlist
@@ -26,6 +28,7 @@ create table if not exists public.prompt_history (
   enhanced_prompt  text,
   quality_before   integer,
   quality_after    integer,
+  model_used       text,
   created_at       timestamp with time zone default now()
 );
 

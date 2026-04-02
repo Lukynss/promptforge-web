@@ -142,7 +142,7 @@ function LoginForm() {
               />
             )}
 
-            <button type="submit" className="btn-primary" disabled={loading}>
+            <button type="submit" className="btn btn-primary auth-submit-btn" disabled={loading}>
               {loading
                 ? 'Loading…'
                 : mode === 'login'
@@ -180,8 +180,8 @@ function LoginForm() {
 
           <p className="auth-terms">
             By signing in, you agree to our{' '}
-            <Link href="#">Terms of Service</Link> and{' '}
-            <Link href="#">Privacy Policy</Link>.
+            <span className="auth-terms-link">Terms of Service</span> and{' '}
+            <span className="auth-terms-link">Privacy Policy</span>.
           </p>
         </div>
       </main>

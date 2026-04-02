@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import DownloadButton from '@/components/DownloadButton'
 
 const supabaseConfigured =
   !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -8,6 +9,7 @@ const supabaseConfigured =
 
 export default function Nav() {
   const [user, setUser] = useState(null)
+  const [plan, setPlan] = useState('free')
 
   useEffect(() => {
     if (!supabaseConfigured) return
@@ -15,15 +17,33 @@ export default function Nav() {
     let subscription
     import('@/lib/supabase/client').then(({ createClient }) => {
       const supabase = createClient()
-      supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
+
+      const loadUser = async (u) => {
+        setUser(u)
+        if (u) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('plan')
+            .eq('id', u.id)
+            .maybeSingle()
+          setPlan(profile?.plan ?? 'free')
+        } else {
+          setPlan('free')
+        }
+      }
+
+      supabase.auth.getUser().then(({ data: { user } }) => loadUser(user))
+
       const { data } = supabase.auth.onAuthStateChange((_, session) => {
-        setUser(session?.user ?? null)
+        loadUser(session?.user ?? null)
       })
       subscription = data.subscription
     })
 
     return () => subscription?.unsubscribe()
   }, [])
+
+  const initial = (user?.user_metadata?.full_name?.[0] ?? user?.email?.[0] ?? '?').toUpperCase()
 
   return (
     <nav>
@@ -40,18 +60,36 @@ export default function Nav() {
       <div className="nav-links">
         <Link href="/#how" className="nav-link">How it works</Link>
         <Link href="/#features" className="nav-link">Features</Link>
-        <Link href="/#quick" className="nav-link">Quick Mode</Link>
+        <Link href="/app" className="nav-link nav-link-forge">Forge</Link>
         <Link href="/#pricing" className="nav-link">Pricing</Link>
 
         {user ? (
-          <Link href="/dashboard" className="btn btn-primary" style={{ fontSize: '13px', padding: '7px 14px', borderRadius: '9px' }}>
-            Dashboard
-          </Link>
+          <>
+            {plan === 'pro' ? (
+              <span className="nav-pro-badge">Pro</span>
+            ) : (
+              <Link href="/upgrade" className="nav-upgrade-btn">
+                Upgrade to Pro
+              </Link>
+            )}
+            <Link href="/dashboard" className="btn btn-primary" style={{ fontSize: '13px', padding: '7px 14px', borderRadius: '9px' }}>
+              Dashboard
+            </Link>
+            <Link href="/dashboard" className="nav-account-avatar" aria-label="Account">
+              {initial}
+            </Link>
+          </>
         ) : (
           <>
             <Link href="/login" className="nav-link">Sign in</Link>
-            <Link href="#" className="btn btn-primary" style={{ fontSize: '13px', padding: '7px 14px', borderRadius: '9px' }}>
+            <DownloadButton className="btn btn-primary" style={{ fontSize: '13px', padding: '7px 14px', borderRadius: '9px' }}>
               Download
+            </DownloadButton>
+            <Link href="/login" className="nav-account-icon" aria-label="Sign in">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="5.5" r="2.5" stroke="currentColor" strokeWidth="1.3"/>
+                <path d="M2.5 13.5c0-2.485 2.462-4.5 5.5-4.5s5.5 2.015 5.5 4.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+              </svg>
             </Link>
           </>
         )}

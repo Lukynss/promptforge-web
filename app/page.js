@@ -1,5 +1,6 @@
 import Nav from '@/components/Nav'
 import Hero from '@/components/Hero'
+import AppPreview from '@/components/AppPreview'
 import HowItWorks from '@/components/HowItWorks'
 import Features from '@/components/Features'
 import QuickMode from '@/components/QuickMode'
@@ -14,6 +15,7 @@ export default function HomePage() {
     <div className="wrap">
       <Nav />
       <Hero />
+      <AppPreview />
       <div className="divider" />
       <HowItWorks />
       <div className="divider" />
