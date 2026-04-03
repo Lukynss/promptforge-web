@@ -2,8 +2,6 @@ import Groq from 'groq-sdk'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-const DAILY_LIMIT = 5
-
 export async function POST(request) {
   const { prompt, questions, answers } = await request.json()
 
@@ -15,42 +13,27 @@ export async function POST(request) {
     return NextResponse.json({ error: 'GROQ_API_KEY is not configured.' }, { status: 500 })
   }
 
-  // ── Rate limit check ───────────────────────────────────────────────────────
-  // Only counts existing rows — save happens client-side after this returns.
+  // ── Pro check ──────────────────────────────────────────────────────────────
   try {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
-    if (user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('plan')
-        .eq('id', user.id)
-        .maybeSingle()
+    if (!user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    }
 
-      const isPro = profile?.plan === 'pro'
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('plan')
+      .eq('id', user.id)
+      .maybeSingle()
 
-      if (!isPro) {
-        const todayStart = new Date()
-        todayStart.setHours(0, 0, 0, 0)
-
-        const { count } = await supabase
-          .from('prompt_history')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .gte('created_at', todayStart.toISOString())
-
-        if ((count ?? 0) >= DAILY_LIMIT) {
-          return NextResponse.json(
-            { error: 'Daily limit reached', limitReached: true, used: count, limit: DAILY_LIMIT },
-            { status: 429 }
-          )
-        }
-      }
+    if (profile?.plan !== 'pro') {
+      return NextResponse.json({ error: 'Pro plan required' }, { status: 403 })
     }
   } catch (e) {
-    console.error('[refine] rate-limit check error:', e)
-    // Non-critical — continue
+    console.error('[refine] auth check error:', e)
+    return NextResponse.json({ error: 'Auth error' }, { status: 500 })
   }
 
   // ── Generate ───────────────────────────────────────────────────────────────
@@ -93,7 +76,7 @@ Return ONLY valid JSON:
     })
 
     const data = JSON.parse(completion.choices[0].message.content.trim())
-    return NextResponse.json({ ...data, limit: DAILY_LIMIT })
+    return NextResponse.json(data)
   } catch (e) {
     console.error('[refine] generation error:', e)
     return NextResponse.json({ error: e.message }, { status: 500 })

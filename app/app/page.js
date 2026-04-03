@@ -23,7 +23,8 @@ export default function AppPage() {
   const router = useRouter()
   const supabase = useRef(createClient()).current
 
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState(undefined) // undefined = loading
+  const [plan, setPlan] = useState(null)
   const [step, setStep] = useState(STEPS.INPUT)
   const [roughPrompt, setRoughPrompt] = useState('')
   const [questions, setQuestions] = useState([])
@@ -34,13 +35,28 @@ export default function AppPage() {
   const [customAnswer, setCustomAnswer] = useState('')
   const [showCustom, setShowCustom] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [usedToday, setUsedToday] = useState(null)
 
-  // Load auth state once on mount
+  // Load auth + plan on mount
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      setUser(session?.user ?? null)
+    const fetchPlan = async (u) => {
+      if (!u) { setPlan(null); return }
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('plan')
+        .eq('id', u.id)
+        .maybeSingle()
+      setPlan(profile?.plan ?? 'free')
+    }
+
+    supabase.auth.getUser().then(({ data: { user: u } }) => {
+      setUser(u ?? null)
+      fetchPlan(u ?? null)
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
+      const u = session?.user ?? null
+      setUser(u)
+      fetchPlan(u)
     })
     return () => subscription.unsubscribe()
   }, [])
@@ -69,6 +85,8 @@ export default function AppPage() {
         body: JSON.stringify({ prompt: roughPrompt }),
       })
       const data = await res.json()
+      if (res.status === 401) { router.push('/login?next=/app'); return }
+      if (res.status === 403) { router.push('/upgrade'); return }
       if (!res.ok) throw new Error(data.error || 'Failed to generate questions')
       setQuestions(data.questions)
       setAnswers([])
@@ -106,18 +124,14 @@ export default function AppPage() {
       })
       const data = await res.json()
 
-      if (res.status === 429) {
-        setError(`limit_reached:${data.used ?? 5}:${data.limit ?? 5}`)
-        setStep(STEPS.INPUT)
-        return
-      }
+      if (res.status === 401) { router.push('/login?next=/app'); return }
+      if (res.status === 403) { router.push('/upgrade'); return }
       if (!res.ok) throw new Error(data.error || 'Failed to refine prompt')
 
       setResult(data)
       setStep(STEPS.RESULT)
 
-      // ── Client-side save ─────────────────────────────────────────────────
-      // Uses the browser Supabase session directly — most reliable approach.
+      // Save to history
       if (user) {
         const { error: saveErr } = await supabase.from('prompt_history').insert({
           user_id: user.id,
@@ -126,19 +140,7 @@ export default function AppPage() {
           quality_before: Math.round(data.original_score ?? 0),
           quality_after: Math.round(data.refined_score ?? 0),
         })
-        if (saveErr) {
-          console.error('[history] save failed:', saveErr.message)
-        } else {
-          // Refresh today's count to display accurate usage
-          const todayStart = new Date()
-          todayStart.setHours(0, 0, 0, 0)
-          const { count } = await supabase
-            .from('prompt_history')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', user.id)
-            .gte('created_at', todayStart.toISOString())
-          setUsedToday(count ?? 1)
-        }
+        if (saveErr) console.error('[history] save failed:', saveErr.message)
       }
     } catch (e) {
       setError(e.message)
@@ -163,11 +165,76 @@ export default function AppPage() {
     setShowCustom(false)
     setCustomAnswer('')
     setCopied(false)
-    setUsedToday(null)
   }
 
-  const DAILY_LIMIT = result?.limit ?? 5
+  // ── Auth loading ──────────────────────────────────────────────────────────────
+  if (user === undefined) {
+    return (
+      <div className="wrap">
+        <Nav />
+        <main className="forge-main">
+          <div className="forge-step forge-loading-step">
+            <div className="forge-spinner" />
+          </div>
+        </main>
+      </div>
+    )
+  }
 
+  // ── Not logged in ─────────────────────────────────────────────────────────────
+  if (!user) {
+    return (
+      <div className="wrap">
+        <Nav />
+        <main className="forge-main">
+          <div className="forge-step forge-gate">
+            <div className="forge-eyebrow">
+              <span className="hero-eyebrow-dot" />
+              PromptForge Web
+            </div>
+            <h1 className="forge-title">Sign in to<br /><em>start forging</em></h1>
+            <p className="forge-sub">Create an account and subscribe to start transforming your prompts.</p>
+            <a href="/login" className="btn btn-primary btn-lg forge-submit">
+              Sign in with Google
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M3 7h8M7 3l4 4-4 4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </a>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  // ── Free plan ─────────────────────────────────────────────────────────────────
+  if (plan !== 'pro') {
+    return (
+      <div className="wrap">
+        <Nav />
+        <main className="forge-main">
+          <div className="forge-step forge-gate">
+            <div className="forge-eyebrow">
+              <span className="hero-eyebrow-dot" />
+              Pro Plan Required
+            </div>
+            <h1 className="forge-title">Unlock<br /><em>PromptForge</em></h1>
+            <p className="forge-sub">
+              Subscribe to Pro for $3/month — unlimited forges, no API key needed.
+            </p>
+            <a href="/upgrade" className="btn btn-primary btn-lg forge-submit">
+              Subscribe — $3/mo
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M3 7h8M7 3l4 4-4 4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </a>
+            <a href="/dashboard" className="forge-back-btn" style={{ marginTop: '16px' }}>← Back to Dashboard</a>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  // ── Pro — full forge UI ───────────────────────────────────────────────────────
   return (
     <div className="wrap">
       <Nav />
@@ -186,18 +253,8 @@ export default function AppPage() {
             </p>
 
             {error && (
-              <div
-                className={error.startsWith('limit_reached') ? 'forge-limit-banner' : 'auth-error'}
-                style={{ maxWidth: '560px', width: '100%' }}
-              >
-                {error.startsWith('limit_reached') ? (
-                  <>
-                    You&apos;ve used all {error.split(':')[2]} free forges today.{' '}
-                    <a href="/upgrade" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>
-                      Upgrade to Pro
-                    </a>{' '}for unlimited access.
-                  </>
-                ) : error.includes('GROQ_API_KEY') ? (
+              <div className="auth-error" style={{ maxWidth: '560px', width: '100%' }}>
+                {error.includes('GROQ_API_KEY') ? (
                   <>Add <code>GROQ_API_KEY</code> to your <code>.env.local</code></>
                 ) : error}
               </div>
@@ -374,33 +431,13 @@ export default function AppPage() {
               </div>
             </div>
 
-            {user && usedToday != null && (
-              <div className="forge-usage-row">
-                <span className="forge-usage-pips">
-                  {Array.from({ length: DAILY_LIMIT }).map((_, i) => (
-                    <span key={i} className={`forge-usage-pip ${i < usedToday ? 'used' : ''}`} />
-                  ))}
-                </span>
-                <span className="forge-usage-label">
-                  {usedToday}/{DAILY_LIMIT} free forges today
-                  {usedToday >= DAILY_LIMIT && (
-                    <> · <a href="/upgrade" style={{ color: 'var(--accent)' }}>Upgrade for unlimited</a></>
-                  )}
-                </span>
-              </div>
-            )}
-
             <div className="forge-result-actions">
               <button className="btn btn-ghost" onClick={handleReset}>
                 ← Try another prompt
               </button>
-              {user ? (
-                <button className="btn btn-primary" onClick={() => router.push('/dashboard')}>
-                  View history →
-                </button>
-              ) : (
-                <a href="/login" className="btn btn-primary">Sign in to save →</a>
-              )}
+              <button className="btn btn-primary" onClick={() => router.push('/dashboard')}>
+                View history →
+              </button>
             </div>
           </div>
         )}

@@ -1,5 +1,6 @@
 import Groq from 'groq-sdk'
 import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request) {
   const { prompt } = await request.json()
@@ -10,6 +11,29 @@ export async function POST(request) {
 
   if (!process.env.GROQ_API_KEY) {
     return NextResponse.json({ error: 'GROQ_API_KEY is not configured.' }, { status: 500 })
+  }
+
+  // ── Pro check ──────────────────────────────────────────────────────────────
+  try {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('plan')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (profile?.plan !== 'pro') {
+      return NextResponse.json({ error: 'Pro plan required' }, { status: 403 })
+    }
+  } catch (e) {
+    console.error('[questions] auth check error:', e)
+    return NextResponse.json({ error: 'Auth error' }, { status: 500 })
   }
 
   try {
@@ -54,7 +78,6 @@ Decide how many questions are needed and generate them with specific answer opti
     const text = completion.choices[0].message.content.trim()
     const data = JSON.parse(text)
 
-    // Validate shape
     if (!Array.isArray(data.questions) || data.questions.length === 0) {
       throw new Error('Invalid response shape from model')
     }
