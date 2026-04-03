@@ -1,7 +1,6 @@
 'use client'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import DownloadButton from '@/components/DownloadButton'
 
 const supabaseConfigured =
   !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -82,9 +81,9 @@ export default function Nav() {
         ) : (
           <>
             <Link href="/login" className="nav-link">Sign in</Link>
-            <DownloadButton className="btn btn-primary" style={{ fontSize: '13px', padding: '7px 14px', borderRadius: '9px' }}>
-              Download
-            </DownloadButton>
+            <Link href="/upgrade" className="btn btn-primary" style={{ fontSize: '13px', padding: '7px 14px', borderRadius: '9px' }}>
+              Get Pro
+            </Link>
             <Link href="/login" className="nav-account-icon" aria-label="Sign in">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <circle cx="8" cy="5.5" r="2.5" stroke="currentColor" strokeWidth="1.3"/>

@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import DownloadButton from '@/components/DownloadButton'
 
 export default function Hero() {
   return (
@@ -21,13 +20,13 @@ export default function Hero() {
         </p>
 
         <div className="hero-actions hero-actions-animate">
-          <DownloadButton className="btn btn-primary btn-lg btn-download">
+          <Link href="/upgrade" className="btn btn-primary btn-lg btn-download">
             <svg width="15" height="15" viewBox="0 0 15 15" fill="none" className="btn-download-icon">
               <path d="M7.5 1v9M4 7l3.5 3.5L11 7" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M1 13h13" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
-            Download for Mac — Free
-          </DownloadButton>
+            Get Pro — $3/mo
+          </Link>
           <Link href="/app" className="btn btn-ghost btn-lg">Try web app →</Link>
         </div>
 

@@ -4,7 +4,7 @@ import { useState } from 'react'
 export default function DownloadButton({ className = 'btn btn-primary btn-lg btn-download', children }) {
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState('')
-  const [status, setStatus] = useState('idle') // idle | loading | success | error
+  const [status, setStatus] = useState('idle')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -64,14 +64,12 @@ export default function DownloadButton({ className = 'btn btn-primary btn-lg btn
                   <div className="auth-error">Something went wrong. Try again.</div>
                 )}
                 <button type="submit" className="btn btn-primary" disabled={status === 'loading'} style={{ width: '100%', justifyContent: 'center' }}>
-                  {status === 'loading' ? 'Saving…' : "Notify me when it\u2019s ready"}
+                  {status === 'loading' ? 'Saving…' : "Notify me when it's ready"}
                 </button>
               </form>
             )}
 
-            <div className="modal-divider">
-              <span>or</span>
-            </div>
+            <div className="modal-divider"><span>or</span></div>
 
             <a href="/app" className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center', textAlign: 'center' }}>
               Try the web app now →
