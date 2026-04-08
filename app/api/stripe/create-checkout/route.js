@@ -52,6 +52,7 @@ export async function POST() {
     line_items: [{ price: process.env.STRIPE_PRO_PRICE_ID, quantity: 1 }],
     success_url: `${baseUrl}/upgrade/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${baseUrl}/upgrade`,
+    metadata: { supabase_user_id: user.id },
     subscription_data: {
       metadata: { supabase_user_id: user.id },
     },

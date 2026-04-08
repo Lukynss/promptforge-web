@@ -24,10 +24,26 @@ export async function POST(request) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object
-    // client_reference_id is set when user clicks payment link with ?client_reference_id=userId
-    const userId = session.client_reference_id
-      ?? session.subscription_data?.metadata?.supabase_user_id
-      ?? session.metadata?.supabase_user_id
+
+    let userId = session.metadata?.supabase_user_id ?? session.client_reference_id
+
+    if (!userId && session.subscription) {
+      try {
+        const subscription = await stripe.subscriptions.retrieve(session.subscription)
+        userId = subscription.metadata?.supabase_user_id
+      } catch (e) {
+        console.error('[webhook] failed to retrieve subscription:', e.message)
+      }
+    }
+
+    if (!userId) {
+      const { data: profile } = await admin
+        .from('profiles')
+        .select('id')
+        .eq('stripe_customer_id', session.customer)
+        .maybeSingle()
+      userId = profile?.id
+    }
 
     if (userId) {
       await admin
