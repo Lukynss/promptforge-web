@@ -1,45 +1,45 @@
 'use client'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 const supabaseConfigured =
   !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
   !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 export default function Nav() {
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState(undefined) // undefined = loading, null = logged out
   const [plan, setPlan] = useState('free')
 
   useEffect(() => {
-    if (!supabaseConfigured) return
+    if (!supabaseConfigured) {
+      setUser(null)
+      return
+    }
 
-    let subscription
-    import('@/lib/supabase/client').then(({ createClient }) => {
-      const supabase = createClient()
+    const supabase = createClient()
 
-      const loadUser = async (u) => {
-        setUser(u)
-        if (u) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('plan')
-            .eq('id', u.id)
-            .maybeSingle()
-          setPlan(profile?.plan ?? 'free')
-        } else {
-          setPlan('free')
-        }
+    const loadUser = async (u) => {
+      setUser(u)
+      if (u) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('plan')
+          .eq('id', u.id)
+          .maybeSingle()
+        setPlan(profile?.plan ?? 'free')
+      } else {
+        setPlan('free')
       }
+    }
 
-      supabase.auth.getUser().then(({ data: { user } }) => loadUser(user))
+    supabase.auth.getUser().then(({ data: { user } }) => loadUser(user))
 
-      const { data } = supabase.auth.onAuthStateChange((_, session) => {
-        loadUser(session?.user ?? null)
-      })
-      subscription = data.subscription
+    const { data } = supabase.auth.onAuthStateChange((_, session) => {
+      loadUser(session?.user ?? null)
     })
 
-    return () => subscription?.unsubscribe()
+    return () => data.subscription.unsubscribe()
   }, [])
 
   const initial = (user?.user_metadata?.full_name?.[0] ?? user?.email?.[0] ?? '?').toUpperCase()
@@ -62,7 +62,7 @@ export default function Nav() {
         <Link href="/app" className="nav-link nav-link-forge">Forge</Link>
         <Link href="/#pricing" className="nav-link">Pricing</Link>
 
-        {user ? (
+        {user === undefined ? null : user ? (
           <>
             {plan === 'pro' ? (
               <span className="nav-pro-badge">Pro</span>
