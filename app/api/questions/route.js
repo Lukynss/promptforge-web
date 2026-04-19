@@ -13,7 +13,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'GROQ_API_KEY is not configured.' }, { status: 500 })
   }
 
-  // ── Pro check ──────────────────────────────────────────────────────────────
+  // ── Auth + usage check ─────────────────────────────────────────────────────
   try {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -29,7 +29,18 @@ export async function POST(request) {
       .maybeSingle()
 
     if (profile?.plan !== 'pro') {
-      return NextResponse.json({ error: 'Pro plan required' }, { status: 403 })
+      const todayStart = new Date()
+      todayStart.setHours(0, 0, 0, 0)
+
+      const { count } = await supabase
+        .from('prompt_history')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('created_at', todayStart.toISOString())
+
+      if ((count ?? 0) >= 5) {
+        return NextResponse.json({ error: 'Daily limit reached. Upgrade to Pro for unlimited forges.' }, { status: 403 })
+      }
     }
   } catch (e) {
     console.error('[questions] auth check error:', e)

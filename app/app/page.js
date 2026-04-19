@@ -25,6 +25,7 @@ export default function AppPage() {
 
   const [user, setUser] = useState(undefined) // undefined = loading
   const [plan, setPlan] = useState(null)
+  const [usedToday, setUsedToday] = useState(0)
   const [step, setStep] = useState(STEPS.INPUT)
   const [roughPrompt, setRoughPrompt] = useState('')
   const [questions, setQuestions] = useState([])
@@ -46,6 +47,15 @@ export default function AppPage() {
         .eq('id', u.id)
         .maybeSingle()
       setPlan(profile?.plan ?? 'free')
+
+      const todayStart = new Date()
+      todayStart.setHours(0, 0, 0, 0)
+      const { count } = await supabase
+        .from('prompt_history')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', u.id)
+        .gte('created_at', todayStart.toISOString())
+      setUsedToday(count ?? 0)
     }
 
     supabase.auth.getUser().then(({ data: { user: u } }) => {
@@ -86,7 +96,7 @@ export default function AppPage() {
       })
       const data = await res.json()
       if (res.status === 401) { router.push('/login?next=/app'); return }
-      if (res.status === 403) { router.push('/upgrade'); return }
+      if (res.status === 403) { setError(data.error || 'Daily limit reached.'); setStep(STEPS.INPUT); return }
       if (!res.ok) throw new Error(data.error || 'Failed to generate questions')
       setQuestions(data.questions)
       setAnswers([])
@@ -125,11 +135,12 @@ export default function AppPage() {
       const data = await res.json()
 
       if (res.status === 401) { router.push('/login?next=/app'); return }
-      if (res.status === 403) { router.push('/upgrade'); return }
+      if (res.status === 403) { setError(data.error || 'Daily limit reached.'); setStep(STEPS.INPUT); return }
       if (!res.ok) throw new Error(data.error || 'Failed to refine prompt')
 
       setResult(data)
       setStep(STEPS.RESULT)
+      setUsedToday(prev => prev + 1)
 
       // Save to history
       if (user) {
@@ -206,35 +217,7 @@ export default function AppPage() {
     )
   }
 
-  // ── Free plan ─────────────────────────────────────────────────────────────────
-  if (plan !== 'pro') {
-    return (
-      <div className="wrap">
-        <Nav />
-        <main className="forge-main">
-          <div className="forge-step forge-gate">
-            <div className="forge-eyebrow">
-              <span className="hero-eyebrow-dot" />
-              Pro Plan Required
-            </div>
-            <h1 className="forge-title">Unlock<br /><em>PromptForge</em></h1>
-            <p className="forge-sub">
-              Subscribe to Pro for $3/month — unlimited forges, no API key needed.
-            </p>
-            <a href="/upgrade" className="btn btn-primary btn-lg forge-submit">
-              Subscribe — $3/mo
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M3 7h8M7 3l4 4-4 4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </a>
-            <a href="/dashboard" className="forge-back-btn" style={{ marginTop: '16px' }}>← Back to Dashboard</a>
-          </div>
-        </main>
-      </div>
-    )
-  }
-
-  // ── Pro — full forge UI ───────────────────────────────────────────────────────
+  // ── Full forge UI ─────────────────────────────────────────────────────────────
   return (
     <div className="wrap">
       <Nav />
@@ -251,6 +234,20 @@ export default function AppPage() {
             <p className="forge-sub">
               Paste any rough prompt. We'll ask a few smart questions and return something far more precise.
             </p>
+
+            {plan === 'free' && (
+              <div className="forge-usage-bar-wrap">
+                <span className="forge-usage-label">
+                  {usedToday >= 5
+                    ? <>Daily limit reached · <a href="/upgrade" style={{ color: 'var(--accent)' }}>Upgrade to Pro</a></>
+                    : <>{5 - usedToday} forge{5 - usedToday !== 1 ? 's' : ''} remaining today</>
+                  }
+                </span>
+                <div className="forge-usage-track">
+                  <div className="forge-usage-fill" style={{ width: `${Math.min((usedToday / 5) * 100, 100)}%` }} />
+                </div>
+              </div>
+            )}
 
             {error && (
               <div className="auth-error" style={{ maxWidth: '560px', width: '100%' }}>
