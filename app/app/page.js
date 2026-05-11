@@ -12,6 +12,24 @@ const STEPS = {
   RESULT: 'result',
 }
 
+const MODE_META = {
+  lite:     { label: 'Lite',     hint: 'Zero questions — instant polish',           color: '#6dbf7f' },
+  standard: { label: 'Standard', hint: '3–5 questions, guided refinement',          color: '#c97d3a' },
+  expert:   { label: 'Expert',   hint: '6–10 questions, production-grade prompt',   color: '#a78bfa' },
+  auto:     { label: null,       hint: null,                                         color: null     },
+}
+
+function detectMode(text) {
+  if (/^\/lite\b/i.test(text))     return 'lite'
+  if (/^\/standard\b/i.test(text)) return 'standard'
+  if (/^\/expert\b/i.test(text))   return 'expert'
+  return 'auto'
+}
+
+function stripModePrefix(text) {
+  return text.replace(/^\/(lite|standard|expert)\s*/i, '').trim()
+}
+
 const EXAMPLES = [
   'Write a cover letter for a software engineer role',
   'Make a landing page for my SaaS product',
@@ -36,6 +54,7 @@ export default function AppPage() {
   const [customAnswer, setCustomAnswer] = useState('')
   const [showCustom, setShowCustom] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [selectedMode, setSelectedMode] = useState('auto')
 
   // Load auth + plan on mount
   useEffect(() => {
@@ -57,11 +76,6 @@ export default function AppPage() {
         .gte('created_at', todayStart.toISOString())
       setUsedToday(count ?? 0)
     }
-
-    supabase.auth.getUser().then(({ data: { user: u } }) => {
-      setUser(u ?? null)
-      fetchPlan(u ?? null)
-    })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
       const u = session?.user ?? null
@@ -86,13 +100,48 @@ export default function AppPage() {
 
   const handleStart = async () => {
     if (!roughPrompt.trim()) return
-    setStep(STEPS.LOADING_Q)
+    const prefixMode = detectMode(roughPrompt)
+    const mode = prefixMode !== 'auto' ? prefixMode : selectedMode
+    const cleanPrompt = stripModePrefix(roughPrompt)
     setError(null)
+
+    if (mode === 'lite') {
+      setStep(STEPS.LOADING_R)
+      try {
+        const res = await fetch('/api/refine', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: cleanPrompt, questions: [], answers: [], mode: 'lite' }),
+        })
+        const data = await res.json()
+        if (res.status === 401) { router.push('/login?next=/app'); return }
+        if (res.status === 403) { setError(data.error || 'Daily limit reached.'); setStep(STEPS.INPUT); return }
+        if (!res.ok) throw new Error(data.error || 'Failed to refine prompt')
+        setResult(data)
+        setStep(STEPS.RESULT)
+        setUsedToday(prev => prev + 1)
+        if (user) {
+          await supabase.from('prompt_history').insert({
+            user_id: user.id,
+            original_prompt: cleanPrompt,
+            enhanced_prompt: data.refined,
+            quality_before: Math.round(data.original_score ?? 0),
+            quality_after: Math.round(data.refined_score ?? 0),
+          })
+        }
+      } catch (e) {
+        setError(e.message)
+        setStep(STEPS.INPUT)
+      }
+      return
+    }
+
+    setStep(STEPS.LOADING_Q)
     try {
       const res = await fetch('/api/questions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: roughPrompt }),
+        body: JSON.stringify({ prompt: cleanPrompt, mode }),
       })
       const data = await res.json()
       if (res.status === 401) { router.push('/login?next=/app'); return }
@@ -122,14 +171,18 @@ export default function AppPage() {
 
     // Last answer — generate refined prompt
     setStep(STEPS.LOADING_R)
+    const prefixMode = detectMode(roughPrompt)
+    const mode = prefixMode !== 'auto' ? prefixMode : selectedMode
+    const cleanPrompt = stripModePrefix(roughPrompt)
     try {
       const res = await fetch('/api/refine', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: roughPrompt,
+          prompt: cleanPrompt,
           questions: questions.map(q => q.q),
           answers: newAnswers,
+          mode,
         }),
       })
       const data = await res.json()
@@ -146,7 +199,7 @@ export default function AppPage() {
       if (user) {
         const { error: saveErr } = await supabase.from('prompt_history').insert({
           user_id: user.id,
-          original_prompt: roughPrompt,
+          original_prompt: cleanPrompt,
           enhanced_prompt: data.refined,
           quality_before: Math.round(data.original_score ?? 0),
           quality_after: Math.round(data.refined_score ?? 0),
@@ -257,17 +310,52 @@ export default function AppPage() {
               </div>
             )}
 
+            <div className="forge-mode-selector">
+              {[
+                { id: 'auto',     label: 'Auto',     hint: 'We detect the right mode' },
+                { id: 'lite',     label: 'Lite',     hint: 'Instant polish, zero questions' },
+                { id: 'standard', label: 'Standard', hint: '3–5 questions, guided' },
+                { id: 'expert',   label: 'Expert',   hint: '6–10 questions, production-grade' },
+              ].map(({ id, label, hint }) => {
+                const prefixMode = detectMode(roughPrompt)
+                const active = prefixMode !== 'auto' ? prefixMode === id : selectedMode === id
+                const meta = MODE_META[id]
+                return (
+                  <button
+                    key={id}
+                    className={`forge-mode-btn${active ? ' active' : ''}`}
+                    style={active && meta.color ? { '--mode-color': meta.color } : {}}
+                    onClick={() => setSelectedMode(id)}
+                    title={hint}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+
             <div className="forge-input-wrap">
               <textarea
                 className="forge-textarea"
-                placeholder="e.g. Write me a cover letter, build a landing page for my SaaS, explain machine learning..."
+                placeholder="Paste any rough prompt and we'll transform it…"
                 value={roughPrompt}
                 onChange={e => setRoughPrompt(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && roughPrompt.trim()) handleStart() }}
                 rows={4}
                 autoFocus
               />
-              <span className="forge-input-hint">⌘↵ to submit</span>
+              <div className="forge-input-footer">
+                {detectMode(roughPrompt) !== 'auto' && (() => {
+                  const m = detectMode(roughPrompt)
+                  const meta = MODE_META[m]
+                  return (
+                    <span className="forge-mode-badge" style={{ color: meta.color, borderColor: meta.color + '40', background: meta.color + '15' }}>
+                      /{m} mode active
+                    </span>
+                  )
+                })()}
+                <span className="forge-input-hint" style={{ marginLeft: 'auto' }}>⌘↵ to submit</span>
+              </div>
             </div>
 
             <button

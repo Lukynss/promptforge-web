@@ -33,8 +33,6 @@ export default function Nav() {
       }
     }
 
-    supabase.auth.getUser().then(({ data: { user } }) => loadUser(user))
-
     const { data } = supabase.auth.onAuthStateChange((_, session) => {
       loadUser(session?.user ?? null)
     })
