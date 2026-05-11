@@ -15,7 +15,7 @@ Welcome to the PromptForge Web Application! This project is built with TypeScrip
 - **Deployment:** Vercel / Netlify / Custom server (depending on deployment strategy)
 
 ## Getting Started
-To get started with the PromptForge application:
+To get started +++++++makewith the PromptForge application:
 1. Clone the repository:
    ```bash
    git clone https://github.com/matysekprogramuje/promptforge-web.git
