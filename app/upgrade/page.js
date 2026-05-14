@@ -1,7 +1,6 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
 
 const FEATURES = [
@@ -50,7 +49,6 @@ export default function UpgradePage() {
 
   return (
     <div className="wrap">
-      <Nav />
       <main className="upgrade-main">
         <div className="upgrade-inner">
 

@@ -1,10 +1,8 @@
 import Link from 'next/link'
-import Nav from '@/components/Nav'
 
 export default function UpgradeSuccessPage() {
   return (
     <div className="wrap">
-      <Nav />
       <main className="upgrade-main">
         <div className="upgrade-inner" style={{ alignItems: 'center', textAlign: 'center' }}>
 

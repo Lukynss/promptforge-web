@@ -1,7 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import Nav from '@/components/Nav'
 import { createClient } from '@/lib/supabase/client'
 
 const STEPS = {
@@ -235,7 +234,7 @@ export default function AppPage() {
   if (user === undefined) {
     return (
       <div className="wrap">
-        <Nav />
+
         <main className="forge-main">
           <div className="forge-step forge-loading-step">
             <div className="forge-spinner" />
@@ -249,7 +248,7 @@ export default function AppPage() {
   if (!user) {
     return (
       <div className="wrap">
-        <Nav />
+
         <main className="forge-main">
           <div className="forge-step forge-gate">
             <div className="forge-eyebrow">
@@ -273,7 +272,6 @@ export default function AppPage() {
   // ── Full forge UI ─────────────────────────────────────────────────────────────
   return (
     <div className="wrap">
-      <Nav />
       <main className="forge-main">
 
         {/* ── INPUT ── */}

@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
 import SignOutButton from '@/components/SignOutButton'
 
@@ -64,7 +63,6 @@ export default async function DashboardPage() {
 
   return (
     <div className="wrap">
-      <Nav />
       <main className="dashboard-main">
         <div className="dashboard-inner">
 

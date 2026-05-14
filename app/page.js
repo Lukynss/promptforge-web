@@ -1,4 +1,3 @@
-import Nav from '@/components/Nav'
 import Hero from '@/components/Hero'
 import AppPreview from '@/components/AppPreview'
 import HowItWorks from '@/components/HowItWorks'
@@ -13,7 +12,6 @@ import Footer from '@/components/Footer'
 export default function HomePage() {
   return (
     <div className="wrap">
-      <Nav />
       <Hero />
       <AppPreview />
       <div className="divider" />
